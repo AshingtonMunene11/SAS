@@ -1,0 +1,10 @@
+start: data_step+
+
+data_step: "DATA" NAME ";" set_stmt "RUN" ";"
+set_stmt: "SET" PATH ";"
+
+NAME: /[A-Za-z_][A-Za-z0-9_]*/
+PATH: /[A-Za-z0-9_\/\.\-]+/
+
+%import common.WS
+%ignore WS
