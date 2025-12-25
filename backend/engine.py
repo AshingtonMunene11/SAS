@@ -1,21 +1,35 @@
-from backend.executor.data_step import Env, load_dataset
+import pandas as pd
 
-def execute(plan):
-    """
-    Execute a parsed plan (list of blocks).
-    Currently supports DATA step with SET.
-    """
-    env = Env()
-    last_df = None
+def apply_clauses(df: pd.DataFrame, plan: dict) -> pd.DataFrame:
+    # WHERE clause
+    if "where" in plan:
+        cond = plan["where"]
+        col, op, val = cond["column"], cond["op"], cond["value"]
+        if op == ">":
+            df = df[df[col] > int(val)]
+        elif op == "<":
+            df = df[df[col] < int(val)]
+        elif op == "=":
+            df = df[df[col] == val]
+        elif op == ">=":
+            df = df[df[col] >= int(val)]
+        elif op == "<=":
+            df = df[df[col] <= int(val)]
+        elif op == "!=":
+            df = df[df[col] != val]
 
-    for block in plan:
-        if block["type"] == "data_step":
-            ds_name = block["name"]
-            path = block["set"]["path"]
-            df = load_dataset(path)
-            env.save(ds_name, df)
-            last_df = df
-        else:
-            raise ValueError(f"Unsupported block type: {block['type']}")
+    # KEEP clause
+    if "keep" in plan:
+        df = df[plan["keep"]]
 
-    return last_df, env
+    # DROP clause
+    if "drop" in plan:
+        df = df.drop(columns=plan["drop"], errors="ignore")
+
+    # RENAME clause
+    if "rename" in plan:
+        for old, new in plan["rename"]:
+            if old in df.columns:
+                df = df.rename(columns={old: new})
+
+    return df

@@ -1,7 +1,18 @@
 start: data_step+
 
-data_step: "DATA" NAME ";" set_stmt "RUN" ";"
+data_step: "DATA" NAME ";" set_stmt where_stmt? keep_stmt? drop_stmt? rename_stmt? "RUN" ";"
+
 set_stmt: "SET" PATH ";"
+
+where_stmt: "WHERE" condition ";"
+condition: NAME OP VALUE
+OP: ">" | "<" | "=" | ">=" | "<=" | "!="
+VALUE: /[A-Za-z0-9_]+/
+
+keep_stmt: "KEEP" NAME ("," NAME)* ";"
+drop_stmt: "DROP" NAME ("," NAME)* ";"
+rename_stmt: "RENAME" rename_pair ("," rename_pair)* ";"
+rename_pair: NAME "=" NAME
 
 NAME: /[A-Za-z_][A-Za-z0-9_]*/
 PATH: /[A-Za-z0-9_\/\.\-]+/

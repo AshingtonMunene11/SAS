@@ -1,24 +1,24 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
-from backend.parser.parser import parse_script
-from backend.engine import execute
+import pandas as pd
+from .parser.parser import parse_script
+from .engine import apply_clauses
 
 app = FastAPI()
 
-class ScriptIn(BaseModel):
+class ScriptRequest(BaseModel):
     code: str
 
-@app.get("/")
-def root():
-    return {"message": "SAS Clone backend is running"}
-
 @app.post("/run-script")
-def run_script(payload: ScriptIn):
-    plan = parse_script(payload.code)
-    df, env = execute(plan)
+def run_script(req: ScriptRequest):
+    plan = parse_script(req.code)[0]
+    df = pd.read_csv(plan["set"]["path"])
+    df = apply_clauses(df, plan)
+
+    preview = df.head(5).to_dict(orient="records")
     return {
         "message": "DATA step executed",
         "columns": list(df.columns),
-        "preview": df.head(5).to_dict(orient="records"),
-        "shape": list(df.shape)
+        "shape": list(df.shape),
+        "preview": preview,
     }
