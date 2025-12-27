@@ -16,7 +16,7 @@ rename_stmt: "RENAME" rename_pair ("," rename_pair)* ";"
 rename_pair: NAME "=" NAME
 
 # ----- PROCs -----
-proc_stmt: proc_print | proc_means | proc_freq
+proc_stmt: proc_print | proc_means | proc_freq | proc_reg
 
 # PROC PRINT with VAR and OBS options
 proc_print: "PROC" "PRINT" var_stmt? obs_stmt? ";" "RUN" ";"
@@ -30,6 +30,11 @@ proc_means: "PROC" "MEANS" ";" "RUN" ";"
 proc_freq: "PROC" "FREQ" tables_stmt? ";" "RUN" ";"
 tables_stmt: "TABLES" table_expr ";"
 table_expr: NAME ("*" NAME)?
+
+# PROC REG with MODEL clause and optional PLOT
+proc_reg: "PROC" "REG" model_stmt plot_stmt? ";" "RUN" ";"
+model_stmt: "MODEL" NAME "=" NAME ("+" NAME)*
+plot_stmt: "PLOT" NAME "*" NAME ";"
 
 # ----- Tokens -----
 NAME: /[A-Za-z_][A-Za-z0-9_]*/

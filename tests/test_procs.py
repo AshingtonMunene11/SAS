@@ -1,6 +1,6 @@
 import pandas as pd
 import pytest
-from backend.engine import proc_print, proc_means, proc_freq
+from backend.engine import proc_print, proc_means, proc_freq, proc_reg
 
 @pytest.fixture
 def sample_df():
@@ -65,3 +65,54 @@ def test_proc_freq_html(sample_df):
     plan = {"type": "proc_freq", "tables": ["gender", "age"]}
     result = proc_freq(sample_df, plan, output_format="html")
     assert "<table" in result["html"]
+
+# ----- PROC REG -----
+
+def test_proc_reg_json_summary(sample_df):
+    plan = {"type": "proc_reg", "dependent": "income", "independent": ["age"]}
+    result = proc_reg(sample_df, plan, output_format="json")
+    summary = result["summary"]
+    assert "coefficients" in summary
+    assert "pvalues" in summary
+    assert "rsquared" in summary
+
+def test_proc_reg_html_summary(sample_df):
+    plan = {"type": "proc_reg", "dependent": "income", "independent": ["age"]}
+    result = proc_reg(sample_df, plan, output_format="html")
+    assert "<table" in result["html"]
+
+def test_proc_reg_chart_output(sample_df):
+    plan = {
+        "type": "proc_reg",
+        "dependent": "income",
+        "independent": ["age"],
+        "plot": {"y": "income", "x": "age"}
+    }
+    result = proc_reg(sample_df, plan, output_format="json", chart=True)
+    assert "chart_png_base64" in result
+    assert isinstance(result["chart_png_base64"], str)
+    assert len(result["chart_png_base64"]) > 100
+
+# ----- PROC REG negative cases -----
+
+def test_proc_reg_missing_dependent(sample_df):
+    plan = {"type": "proc_reg", "dependent": "salary", "independent": ["age"]}
+    result = proc_reg(sample_df, plan, output_format="json")
+    assert result["message"] == "PROC REG error"
+    assert "Dependent variable" in result["error"]
+
+def test_proc_reg_missing_independent(sample_df):
+    plan = {"type": "proc_reg", "dependent": "income", "independent": ["height"]}
+    result = proc_reg(sample_df, plan, output_format="json")
+    assert result["message"] == "PROC REG error"
+    assert "Independent variable" in result["error"]
+
+def test_proc_reg_non_numeric_independent(sample_df):
+    # 'gender' is non-numeric in this fixture
+    plan = {"type": "proc_reg", "dependent": "income", "independent": ["gender"]}
+    result = proc_reg(sample_df, plan, output_format="json")
+    # Should still execute but drop non-numeric predictors
+    assert result["message"] == "PROC REG executed"
+    summary = result["summary"]
+    # Only intercept (const) should remain in coefficients
+    assert list(summary["coefficients"].keys()) == ["const"]

@@ -71,6 +71,24 @@ class ToPlan(Transformer):
     def table_expr(self, *names):
         return [str(n) for n in names]
 
+    # ----- PROC REG -----
+
+    def proc_reg(self, model_stmt, plot_stmt=None):
+        block = {"type": "proc_reg"}
+        block.update(model_stmt)
+        if plot_stmt:
+            block.update(plot_stmt)
+        return block
+
+    def model_stmt(self, dep, first_indep, *others):
+        return {
+            "dependent": str(dep),
+            "independent": [str(first_indep)] + [str(o) for o in others]
+        }
+
+    def plot_stmt(self, y, x):
+        return {"plot": {"y": str(y), "x": str(x)}}
+
     # ----- Tokens -----
 
     def NAME(self, token):
