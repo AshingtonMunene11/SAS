@@ -3,7 +3,9 @@ start: (data_step | proc_stmt)+
 # ----- DATA step -----
 data_step: "DATA" NAME ";" set_stmt where_stmt? keep_stmt? drop_stmt? rename_stmt? "RUN" ";"
 
-set_stmt: "SET" PATH ";"
+# SET now supports optional sheet clause
+set_stmt: "SET" PATH sheet_opt? ";"
+sheet_opt: "(sheet=" NAME ")"
 
 where_stmt: "WHERE" condition ";"
 condition: NAME OP VALUE

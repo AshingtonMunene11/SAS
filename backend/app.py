@@ -4,11 +4,13 @@ import pandas as pd
 import logging
 import os
 
-from .parser.parser import parse_script
-from .engine import run_proc
+from parser.parser import parse_script
+from engine import run_proc
+from executor.data_step import run_data_step
 
 app = FastAPI()
 
+# Ensure logs directory exists
 os.makedirs("logs", exist_ok=True)
 
 class ScriptRequest(BaseModel):
@@ -31,7 +33,7 @@ def run_script(req: ScriptRequest):
     for plan in blocks:
         if plan.get("type") == "data_step":
             try:
-                proc_output = run_proc(plan, output_format=req.output_format, limit=req.limit)
+                proc_output = run_data_step(plan, output_format=req.output_format, limit=req.limit)
             except Exception as e:
                 logging.error(f"DATA step error: {e}")
                 raise HTTPException(status_code=400, detail=f"DATA step error: {e}")
@@ -43,6 +45,7 @@ def run_script(req: ScriptRequest):
             if df is None:
                 if last_path is not None:
                     try:
+                        # reload dataset for PROC steps
                         df = pd.read_csv(last_path)
                     except Exception as e:
                         logging.error(f"Failed to reload last dataset '{last_path}': {e}")
@@ -56,7 +59,7 @@ def run_script(req: ScriptRequest):
         else:
             raise HTTPException(status_code=400, detail=f"Unknown plan type: {plan}")
 
-    # Flatten response if only one block, so tests can access data["columns"]
+    # Flatten response if only one block
     if len(results) == 1:
         return results[0]
     else:

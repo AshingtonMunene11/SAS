@@ -1,3 +1,4 @@
+import re
 from lark import Lark, Transformer, v_args
 from pathlib import Path
 
@@ -10,14 +11,16 @@ class ToPlan(Transformer):
     # ----- DATA step -----
 
     def data_step(self, name, set_stmt, *clauses):
-        block = {"type": "data_step", "name": str(name), "set": set_stmt}
+        block = {"type": "data_step", "name": str(name)}
+        if isinstance(set_stmt, dict):
+            block.update(set_stmt)
         for clause in clauses:
             if clause:
                 block.update(clause)
         return block
 
-    def set_stmt(self, path):
-        return {"path": str(path)}
+    def set_stmt(self, path, sheet=None):
+        return {"path": str(path), "sheet": str(sheet) if sheet else None}
 
     def where_stmt(self, cond):
         return {"where": cond}
@@ -109,3 +112,15 @@ def parse_script(text: str):
         return plan
     else:
         return [plan]
+
+def parse_set_statement(statement: str):
+    """
+    Parse SET statements like:
+    SET path="file.xlsx" (sheet=Sheet1);
+    """
+    match = re.match(r'SET\s+path="([^"]+)"(?:\s*\(sheet=([^)]+)\))?', statement.strip())
+    if match:
+        path = match.group(1)
+        sheet = match.group(2) if match.group(2) else None
+        return {"path": path, "sheet": sheet}
+    return None

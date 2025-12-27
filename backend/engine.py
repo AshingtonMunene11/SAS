@@ -1,10 +1,9 @@
 import io
 import base64
-from typing import Dict, List, Tuple, Optional
-
 import pandas as pd
 import statsmodels.api as sm
 import matplotlib.pyplot as plt
+from typing import Dict, List, Tuple, Optional
 
 # ----- DATA step clause functions -----
 
@@ -212,21 +211,53 @@ def proc_reg(df: pd.DataFrame, plan: Dict, output_format: str = "json", chart: b
 
 # ----- Dispatcher -----
 
-def run_proc(plan: Dict,
-             df: Optional[pd.DataFrame] = None,
-             output_format: str = "json",
-             limit: Optional[int] = 50) -> Dict:
-    if plan["type"] == "data_step":
-        return run_data_step(plan, output_format=output_format)
-    elif plan["type"] == "proc_print":
-        return proc_print(df, plan, output_format=output_format)
-    elif plan["type"] == "proc_means":
-        return proc_means(df, output_format=output_format)
-    elif plan["type"] == "proc_freq":
-        return proc_freq(df, plan, output_format=output_format)
-    elif plan["type"] == "proc_reg":
-        return proc_reg(df, plan,
-                        output_format=output_format,
-                        chart=bool(plan.get("plot")))
-    else:
-        raise ValueError(f"Unknown PROC type: {plan['type']}")
+def run_proc(plan: dict, df: pd.DataFrame = None, output_format: str = "json", limit: int = 20):
+    """
+    Execute PROC steps on a dataframe.
+    Supported: PRINT, MEANS, FREQ, REG (basic).
+    """
+    proc_type = plan.get("type")
+
+    try:
+        if proc_type == "proc_print":
+            # Limit rows
+            obs = plan.get("obs", limit)
+            subset = df.head(obs)
+            if "var" in plan:
+                subset = subset[plan["var"]]
+            return subset.to_dict(orient="records") if output_format == "json" else subset.to_html()
+
+        elif proc_type == "proc_means":
+            summary = df.describe()
+            return summary.to_dict() if output_format == "json" else summary.to_html()
+
+        elif proc_type == "proc_freq":
+            tables = plan.get("tables", [])
+            results = {}
+            for col in tables:
+                freq = df[col].value_counts()
+                results[col] = freq.to_dict()
+            return results if output_format == "json" else pd.DataFrame(results).to_html()
+
+        elif proc_type == "proc_reg":
+            dep = plan.get("dependent")
+            indep = plan.get("independent", [])
+            if dep and indep:
+                # Simple regression using statsmodels if available
+                try:
+                    import statsmodels.api as sm
+                    X = df[indep]
+                    X = sm.add_constant(X)
+                    y = df[dep]
+                    model = sm.OLS(y, X).fit()
+                    return model.summary().as_text() if output_format == "json" else model.summary().as_html()
+                except ImportError:
+                    return {"error": "statsmodels not installed"}
+            else:
+                return {"error": "Missing dependent/independent variables"}
+
+        else:
+            return {"error": f"Unsupported PROC type: {proc_type}"}
+
+    except Exception as e:
+        return {"error": str(e)}
