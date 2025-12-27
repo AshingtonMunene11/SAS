@@ -1,6 +1,11 @@
-import pandas as pd
 import pytest
-from backend.engine import proc_print, proc_means, proc_freq, proc_reg
+import warnings
+import pandas as pd
+from backend.engine import proc_print, proc_means, proc_freq, proc_reg, run_data_step
+from statsmodels.tools.sm_exceptions import ValueWarning
+
+warnings.filterwarnings("ignore", category=ValueWarning)
+
 
 @pytest.fixture
 def sample_df():
@@ -116,3 +121,37 @@ def test_proc_reg_non_numeric_independent(sample_df):
     summary = result["summary"]
     # Only intercept (const) should remain in coefficients
     assert list(summary["coefficients"].keys()) == ["const"]
+
+def test_proc_reg_multiple_independents(sample_df):
+    plan = {"type": "proc_reg", "dependent": "income", "independent": ["age", "income"]}
+    result = proc_reg(sample_df, plan, output_format="json")
+    summary = result["summary"]
+    # Should include const, age, and income in coefficients
+    assert "age" in summary["coefficients"]
+    assert "income" in summary["coefficients"]
+    assert "const" in summary["coefficients"]
+
+def test_proc_freq_nonexistent_column(sample_df):
+    plan = {"type": "proc_freq", "tables": ["unknown_col"]}
+    result = proc_freq(sample_df, plan, output_format="json")
+    # Frequencies dict should exist but be empty for that column
+    assert "unknown_col" in result["frequencies"]
+    assert result["frequencies"]["unknown_col"] == {}
+
+def test_proc_freq_too_many_columns(sample_df):
+    plan = {"type": "proc_freq", "tables": ["gender", "age", "income"]}
+    result = proc_freq(sample_df, plan, output_format="json")
+    assert "error" in result
+    assert "Only 1 or 2 columns supported" in result["error"]
+
+def test_data_step_missing_path():
+    plan = {"type": "data_step"}  # no path
+    result = run_data_step(plan, output_format="json")
+    assert result["message"] == "DATA step error"
+    assert "No dataset path" in result["error"]
+
+def test_data_step_bad_path():
+    plan = {"type": "data_step", "path": "nonexistent.csv"}
+    result = run_data_step(plan, output_format="json")
+    assert result["message"] == "DATA step error"
+    assert "Failed to read CSV" in result["error"]
