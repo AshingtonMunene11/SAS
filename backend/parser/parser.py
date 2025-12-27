@@ -1,16 +1,18 @@
 from lark import Lark, Transformer, v_args
 from pathlib import Path
 
-# Load grammar
+# Load grammar from the same directory as this file
 grammar_text = Path(__file__).with_name("grammar.lark").read_text()
 parser = Lark(grammar_text, start="start")
 
 @v_args(inline=True)
 class ToPlan(Transformer):
+    # ----- DATA step -----
+
     def data_step(self, name, set_stmt, *clauses):
         block = {"type": "data_step", "name": str(name), "set": set_stmt}
         for clause in clauses:
-            if clause:  # only add if not None
+            if clause:
                 block.update(clause)
         return block
 
@@ -35,6 +37,42 @@ class ToPlan(Transformer):
     def rename_stmt(self, *pairs):
         return {"rename": list(pairs)}
 
+    # ----- PROC PRINT -----
+
+    def var_stmt(self, *cols):
+        return {"var": [str(c) for c in cols]}
+
+    def obs_stmt(self, num):
+        return {"obs": int(num)}
+
+    def proc_print(self, *clauses):
+        block = {"type": "proc_print"}
+        for clause in clauses:
+            if clause:
+                block.update(clause)
+        return block
+
+    # ----- PROC MEANS -----
+
+    def proc_means(self):
+        return {"type": "proc_means"}
+
+    # ----- PROC FREQ -----
+
+    def proc_freq(self, tables_stmt=None):
+        block = {"type": "proc_freq"}
+        if tables_stmt:
+            block.update(tables_stmt)
+        return block
+
+    def tables_stmt(self, expr):
+        return {"tables": expr}
+
+    def table_expr(self, *names):
+        return [str(n) for n in names]
+
+    # ----- Tokens -----
+
     def NAME(self, token):
         return token.value
 
@@ -46,6 +84,7 @@ def parse_script(text: str):
     transformer = ToPlan()
     plan = transformer.transform(tree)
 
+    # Always return a list of blocks
     if hasattr(plan, "children"):
         return plan.children
     elif isinstance(plan, list):

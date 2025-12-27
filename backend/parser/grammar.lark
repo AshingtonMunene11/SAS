@@ -1,5 +1,6 @@
-start: data_step+
+start: (data_step | proc_stmt)+
 
+# ----- DATA step -----
 data_step: "DATA" NAME ";" set_stmt where_stmt? keep_stmt? drop_stmt? rename_stmt? "RUN" ";"
 
 set_stmt: "SET" PATH ";"
@@ -14,8 +15,26 @@ drop_stmt: "DROP" NAME ("," NAME)* ";"
 rename_stmt: "RENAME" rename_pair ("," rename_pair)* ";"
 rename_pair: NAME "=" NAME
 
+# ----- PROCs -----
+proc_stmt: proc_print | proc_means | proc_freq
+
+# PROC PRINT with VAR and OBS options
+proc_print: "PROC" "PRINT" var_stmt? obs_stmt? ";" "RUN" ";"
+var_stmt: "VAR" NAME ("," NAME)* ";"
+obs_stmt: "OBS" "=" INT ";"
+
+# PROC MEANS (basic)
+proc_means: "PROC" "MEANS" ";" "RUN" ";"
+
+# PROC FREQ with TABLES clause
+proc_freq: "PROC" "FREQ" tables_stmt? ";" "RUN" ";"
+tables_stmt: "TABLES" table_expr ";"
+table_expr: NAME ("*" NAME)?
+
+# ----- Tokens -----
 NAME: /[A-Za-z_][A-Za-z0-9_]*/
 PATH: /[A-Za-z0-9_\/\.\-]+/
+INT: /[0-9]+/
 
 %import common.WS
 %ignore WS
