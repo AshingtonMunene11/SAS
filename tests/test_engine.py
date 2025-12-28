@@ -1,8 +1,10 @@
 import pytest
 import warnings
 import pandas as pd
-from backend.engine import proc_print, proc_means, proc_freq, proc_reg, run_data_step
+from backend.executor.data_step import run_data_step
 from statsmodels.tools.sm_exceptions import ValueWarning
+from backend.parser.parser import parse_script, parse_set_statement
+from backend.engine import proc_print, proc_means, proc_freq, proc_reg
 
 warnings.filterwarnings("ignore", category=ValueWarning)
 
@@ -155,3 +157,34 @@ def test_data_step_bad_path():
     result = run_data_step(plan, output_format="json")
     assert result["message"] == "DATA step error"
     assert "Failed to read CSV" in result["error"]
+
+def test_parse_set_with_sheet():
+    script = """
+    DATA sales;
+    SET path="sales.xlsx" (sheet=Q1);
+    RUN;
+    """
+    blocks = parse_script(script)
+    assert blocks[0]["path"] == "sales.xlsx"
+    assert blocks[0]["sheet"] == "Q1"
+
+def test_parse_set_statement_regex():
+    stmt = 'SET path="sales.xlsx" (sheet=Q2);'
+    plan = parse_set_statement(stmt)
+    assert plan["path"] == "sales.xlsx"
+    assert plan["sheet"] == "Q2"
+
+def test_run_data_step_excel_with_sheet(tmp_path):
+    # Create a sample Excel file with two sheets
+    df1 = pd.DataFrame({"A": [1, 2], "B": [3, 4]})
+    df2 = pd.DataFrame({"X": [5, 6], "Y": [7, 8]})
+    file = tmp_path / "test.xlsx"
+    with pd.ExcelWriter(file) as writer:
+        df1.to_excel(writer, sheet_name="Sheet1", index=False)
+        df2.to_excel(writer, sheet_name="Q1", index=False)
+
+    plan = {"path": str(file), "sheet": "Q1"}
+    result = run_data_step(plan, "json", limit=2)
+
+    assert result[0]["X"] == 5
+    assert result[1]["Y"] == 8

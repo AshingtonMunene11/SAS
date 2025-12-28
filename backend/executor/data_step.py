@@ -55,23 +55,12 @@ def apply_clauses(df: pd.DataFrame, block: dict) -> pd.DataFrame:
 
     return df
 
-def run_data_step(plan: dict, output_format: str = "json", limit: int = 20):
-    """
-    Execute a DATA step plan: load dataset, apply clauses, return preview.
-    """
-    path = plan.get("path")
-    sheet = plan.get("sheet")
-
-    if not path:
-        return {"error": "Missing dataset path"}
-
+def run_data_step(plan, output_format="json", limit=20):
     try:
-        df = load_dataset(path, sheet)
-        df = apply_clauses(df, plan)
-
-        if output_format == "json":
-            return df.head(limit).to_dict(orient="records")
-        else:
-            return df.head(limit).to_html()
+        path = plan.get("path")
+        if not path:
+            return {"message": "DATA step error", "error": "No dataset path"}
+    except FileNotFoundError:
+        return {"message": "DATA step error", "error": "Failed to read CSV"}
     except Exception as e:
-        return {"error": str(e)}
+        return {"message": "DATA step error", "error": str(e)}

@@ -114,10 +114,6 @@ def parse_script(text: str):
         return [plan]
 
 def parse_set_statement(statement: str):
-    """
-    Parse SET statements like:
-    SET path="file.xlsx" (sheet=Sheet1);
-    """
     match = re.match(r'SET\s+path="([^"]+)"(?:\s*\(sheet=([^)]+)\))?', statement.strip())
     if match:
         path = match.group(1)
